@@ -2,6 +2,10 @@
 
 Minimal static storefront for **nepexog**.
 
+Live site:
+
+https://serebracode.github.io/Nepexog/
+
 The current layout is built around the product image, not a plain color swatch:
 
 > One color. Two identical T-shirts. Vacuum-packed.
