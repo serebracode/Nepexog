@@ -1,485 +1,355 @@
 const PRICE_PER_PAIR = 48;
 const CURRENCY = "EUR";
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
-const STORAGE_KEY = "nepexog-cart-v1";
-
+const STORAGE_KEY = "nepexog-cart-v3";
 const colors = [
-  { id: "01", name: "White", hex: "#FFFFFF", slug: "white" },
-  { id: "02", name: "Milk", hex: "#F4EFE7", slug: "milk" },
-  { id: "03", name: "Stone", hex: "#D8D2C4", slug: "stone" },
-  { id: "04", name: "Warm Grey", hex: "#A8A094", slug: "warm-grey" },
-  { id: "05", name: "Cool Grey", hex: "#9EA4A6", slug: "cool-grey" },
-  { id: "06", name: "Charcoal", hex: "#2F3030", slug: "charcoal" },
-
-  { id: "07", name: "Black", hex: "#000000", slug: "black" },
-  { id: "08", name: "Navy", hex: "#162A3A", slug: "navy" },
-  { id: "09", name: "Blue", hex: "#2457A6", slug: "blue" },
-  { id: "10", name: "Dust Blue", hex: "#7895A8", slug: "dust-blue" },
-  { id: "11", name: "Cyan", hex: "#00A9C8", slug: "cyan" },
-  { id: "12", name: "Ice", hex: "#D8EEF2", slug: "ice" },
-
-  { id: "13", name: "Forest", hex: "#1F4A36", slug: "forest" },
-  { id: "14", name: "Green", hex: "#2F8A4B", slug: "green" },
-  { id: "15", name: "Mint", hex: "#A8D8BD", slug: "mint" },
-  { id: "16", name: "Acid", hex: "#C8FF00", slug: "acid" },
-  { id: "17", name: "Olive", hex: "#6F7443", slug: "olive" },
-  { id: "18", name: "Sand", hex: "#D6B778", slug: "sand" },
-
-  { id: "19", name: "Yellow", hex: "#FFD400", slug: "yellow" },
-  { id: "20", name: "Orange", hex: "#F47A20", slug: "orange" },
-  { id: "21", name: "Red", hex: "#D7261E", slug: "red" },
-  { id: "22", name: "Brick", hex: "#9E3E2F", slug: "brick" },
-  { id: "23", name: "Pink", hex: "#F2A7B8", slug: "pink" },
-  { id: "24", name: "Violet", hex: "#5B3F8C", slug: "violet" }
-].map((color) => ({
-  ...color,
-  hex: color.hex.toUpperCase(),
-  price: PRICE_PER_PAIR,
-  currency: CURRENCY,
-  sizes: SIZES,
-  available: true
-}));
-
+  ["01", "White", "#FFFFFF", "white"],
+  ["02", "Milk", "#F4EFE7", "milk"],
+  ["03", "Stone", "#D8D2C4", "stone"],
+  ["04", "Warm Grey", "#A8A094", "warm-grey"],
+  ["05", "Cool Grey", "#9EA4A6", "cool-grey"],
+  ["06", "Charcoal", "#2F3030", "charcoal"],
+  ["07", "Black", "#000000", "black"],
+  ["08", "Navy", "#162A3A", "navy"],
+  ["09", "Blue", "#2457A6", "blue"],
+  ["10", "Dust Blue", "#7895A8", "dust-blue"],
+  ["11", "Cyan", "#00A9C8", "cyan"],
+  ["12", "Ice", "#D8EEF2", "ice"],
+  ["13", "Forest", "#1F4A36", "forest"],
+  ["14", "Green", "#2F8A4B", "green"],
+  ["15", "Mint", "#A8D8BD", "mint"],
+  ["16", "Acid", "#C8FF00", "acid"],
+  ["17", "Olive", "#6F7443", "olive"],
+  ["18", "Sand", "#D6B778", "sand"],
+  ["19", "Yellow", "#FFD400", "yellow"],
+  ["20", "Orange", "#F47A20", "orange"],
+  ["21", "Red", "#D7261E", "red"],
+  ["22", "Brick", "#9E3E2F", "brick"],
+  ["23", "Pink", "#F2A7B8", "pink"],
+  ["24", "Violet", "#5B3F8C", "violet"]
+].map(([id, name, hex, slug]) => ({ id, name, hex, slug, price: PRICE_PER_PAIR, sizes: SIZES }));
 const app = document.querySelector("#app");
 const cartCount = document.querySelector("[data-cart-count]");
-
 let cart = readCart();
 let selectedSize = null;
-
+let selectedQuantity = 1;
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
 function readCart() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch (error) {
-    return [];
-  }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch (error) { return []; }
 }
-
-function saveCart() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
-  updateCartCount();
-}
-
-function updateCartCount() {
-  const totalPairs = cart.reduce((sum, item) => sum + item.quantity, 0);
-  cartCount.textContent = String(totalPairs);
-}
-
-function formatMoney(value) {
-  return new Intl.NumberFormat("en", {
-    style: "currency",
-    currency: CURRENCY,
-    maximumFractionDigits: 0
-  }).format(value);
-}
-
-function getColorBySlug(slug) {
-  return colors.find((color) => color.slug === slug);
-}
-
-function hexToRgb(hex) {
-  const clean = hex.replace("#", "");
-  return {
-    r: parseInt(clean.slice(0, 2), 16),
-    g: parseInt(clean.slice(2, 4), 16),
-    b: parseInt(clean.slice(4, 6), 16)
-  };
-}
-
-function getReadableTextColor(hex) {
-  const { r, g, b } = hexToRgb(hex);
-  const srgb = [r, g, b].map((value) => {
-    const channel = value / 255;
-    return channel <= 0.03928
-      ? channel / 12.92
-      : Math.pow((channel + 0.055) / 1.055, 2.4);
-  });
-  const luminance = 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
-  return luminance > 0.48 ? "#111111" : "#FFFFFF";
-}
-
-function setDocumentTitle(title, description) {
+function saveCart() { localStorage.setItem(STORAGE_KEY, JSON.stringify(cart)); updateCartCount(); }
+function updateCartCount() { cartCount.textContent = String(cart.reduce((sum, item) => sum + item.quantity, 0)); }
+function money(value) { return new Intl.NumberFormat("en", { style: "currency", currency: CURRENCY, maximumFractionDigits: 0 }).format(value); }
+function bySlug(slug) { return colors.find((color) => color.slug === slug); }
+function setTitle(title, description) {
   document.title = title;
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.setAttribute("content", description);
 }
-
+function clearApp() { app.replaceChildren(); }
 function route() {
   selectedSize = null;
-  const hash = window.location.hash || "#/";
-  const path = hash.replace(/^#\/?/, "");
-
+  selectedQuantity = 1;
+  const path = (window.location.hash || "#/").replace(/^#\/?/, "");
   if (path.startsWith("color/")) {
-    const slug = path.replace("color/", "");
-    const color = getColorBySlug(slug);
-    if (!color) return renderNotFound();
-    return renderProduct(color);
+    const color = bySlug(path.replace("color/", ""));
+    return color ? renderProduct(color) : renderNotFound();
   }
-
   if (path === "cart") return renderCart();
-  if (path === "size") return renderSizeGuide();
-  if (path === "pack") return renderPackPage();
-
-  return renderHome();
+  renderHome();
 }
-
 function renderHome() {
-  setDocumentTitle(
-    "nepexog — 24 colors, two T-shirts",
-    "nepexog sells color pairs: two identical T-shirts in one selected color, vacuum-packed."
-  );
-
-  app.innerHTML = `
-    <section class="hero section">
-      <div>
-        <h1>One color.<br>Two T-shirts.</h1>
-      </div>
-      <div class="hero-copy">
-        <p>24 colors. Two identical T-shirts in one chosen color. Vacuum-packed.</p>
-        <div class="hero-meta" aria-label="Product summary">
-          <div class="meta-cell"><strong>24</strong><span>colors</span></div>
-          <div class="meta-cell"><strong>2</strong><span>T-shirts per pair</span></div>
-          <div class="meta-cell"><strong>1</strong><span>selected color</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="colors">
-      <div class="section-header">
-        <h2>Choose color.</h2>
-        <p>Every product is sold as one pair: two identical T-shirts in the same color and size.</p>
-      </div>
-      <div class="color-grid" aria-label="24 nepexog colors">
-        ${colors.map(renderColorCard).join("")}
-      </div>
-    </section>
-
-    <section class="info-band" aria-label="Product principles">
-      <article class="info-block">
-        <h2>Pair always.</h2>
-        <p>No single T-shirt purchase. One quantity means one pair: two identical T-shirts.</p>
-      </article>
-      <article class="info-block">
-        <h2>Code visible.</h2>
-        <p>Every color carries a six-character HEX code. The code is part of the product identity.</p>
-      </article>
-      <article class="info-block">
-        <h2>Compact pack.</h2>
-        <p>Each pair is vacuum-packed to reduce volume during storage and delivery.</p>
-      </article>
-    </section>
-  `;
+  setTitle("nepexog — 24 colors, two T-shirts", "A minimal catalog of 24 color pairs: two identical T-shirts in one selected color.");
+  clearApp();
+  const catalog = el("section", "catalog-page");
+  const intro = el("div", "catalog-intro");
+  ["24 colors", "2 identical T-shirts per order", "vacuum-packed"].forEach((text) => intro.append(el("p", "", text)));
+  const grid = el("div", "tee-grid");
+  grid.setAttribute("aria-label", "24 nepexog color T-shirts");
+  colors.forEach((color) => grid.append(renderTeeCard(color)));
+  catalog.append(intro, grid);
+  app.append(catalog, renderInfoBlocks());
 }
-
-function renderColorCard(color) {
-  const textColor = getReadableTextColor(color.hex);
-  return `
-    <a
-      class="color-card"
-      href="#/color/${color.slug}"
-      style="--swatch: ${color.hex}; --card-text: ${textColor};"
-      aria-label="Select ${color.name} ${color.hex}"
-    >
-      <span class="color-number">${color.id}</span>
-      <span class="color-info">
-        <span class="color-hex">${color.hex}</span>
-        <span class="color-name">${color.name}</span>
-      </span>
-    </a>
-  `;
+function renderInfoBlocks() {
+  const section = el("section", "site-info");
+  section.setAttribute("aria-label", "Product information");
+  const blocks = [
+    ["Delivery", "Compact shipping.", "Every pair is vacuum-packed to reduce volume during storage and delivery."],
+    ["Contents", "Two T-shirts.", "Each order contains two identical T-shirts in the same selected color and size."],
+    ["Price", money(PRICE_PER_PAIR) + " / pair.", "One quantity unit means one pair. One pair means two T-shirts."],
+    ["Sizes", "Standard fit.", "Available in XS, S, M, L, XL, and XXL. One size applies to both T-shirts."]
+  ];
+  blocks.forEach(([label, title, body]) => {
+    const article = el("article");
+    article.append(el("span", "", label), el("h2", "", title), el("p", "", body));
+    section.append(article);
+  });
+  return section;
 }
-
+function renderTeeCard(color) {
+  const link = el("a", "tee-card");
+  link.href = "#/color/" + color.slug;
+  link.style.setProperty("--tee-color", color.hex);
+  link.setAttribute("aria-label", "Open " + color.name + " " + color.hex);
+  const visual = el("div", "tee-card-visual");
+  visual.append(renderTeeVisual("front"));
+  const meta = el("div", "tee-card-meta");
+  const text = el("div");
+  text.append(el("p", "color-code", color.hex), el("h2", "", color.name));
+  meta.append(text, el("strong", "", money(color.price)));
+  link.append(visual, meta);
+  return link;
+}
+function renderTeeVisual(variant) {
+  const tee = el("div", "tee-art" + (variant === "back" ? " tee-art--back" : ""));
+  tee.setAttribute("aria-hidden", "true");
+  ["tee-sleeve tee-sleeve--left", "tee-sleeve tee-sleeve--right", "tee-body", "tee-collar", "tee-neck", "tee-seam tee-seam--hem", "tee-seam tee-seam--left", "tee-seam tee-seam--right"].forEach((className) => tee.append(el("div", className)));
+  return tee;
+}
+function renderMedia(kind, color) {
+  if (kind === "fabric") {
+    const media = el("div", "product-media product-media--fabric");
+    media.style.setProperty("--tee-color", color.hex);
+    media.append(el("div", "fabric-surface"));
+    return media;
+  }
+  if (kind === "pack") {
+    const media = el("div", "product-media product-media--pack");
+    media.style.setProperty("--tee-color", color.hex);
+    const pack = el("div", "vacuum-pack");
+    const label = el("div", "pack-label", "nepexog");
+    label.append(el("br"), el("span", "", "pair of 2"));
+    pack.append(el("div", "pack-fold pack-fold--one"), el("div", "pack-fold pack-fold--two"), label);
+    media.append(pack);
+    return media;
+  }
+  const media = el("div", "product-media product-media--tee");
+  media.style.setProperty("--tee-color", color.hex);
+  media.append(renderTeeVisual(kind === "back" ? "back" : "front"));
+  return media;
+}
 function renderProduct(color) {
-  setDocumentTitle(
-    `nepexog ${color.id} ${color.name} ${color.hex} — Pair of 2 T-shirts`,
-    `Two identical T-shirts in ${color.name} ${color.hex}. Vacuum-packed. One color, two T-shirts.`
-  );
-
-  const textColor = getReadableTextColor(color.hex);
-
-  app.innerHTML = `
-    <section class="product-page">
-      <div class="product-swatch" style="--swatch: ${color.hex}; --card-text: ${textColor};">
-        <div class="product-swatch-inner">
-          <a class="back-link" href="#/">← All colors</a>
-          <div>
-            <p class="product-code">${color.id} / ${color.hex}</p>
-            <h1 class="product-title">${color.name}</h1>
-          </div>
-        </div>
-      </div>
-
-      <div class="product-panel">
-        <p class="product-code">Color ${color.id} / ${color.hex}</p>
-        <h2 class="product-title">Pair of 2.</h2>
-        <div class="product-summary">
-          <p><strong>Two identical T-shirts.</strong></p>
-          <p>Same color. Same size. Vacuum-packed.</p>
-          <p>${formatMoney(color.price)} per pair.</p>
-        </div>
-
-        <fieldset class="size-group">
-          <legend>Select size</legend>
-          <div class="size-options">
-            ${color.sizes.map((size) => `
-              <button class="size-button" type="button" data-size="${size}" aria-pressed="false">${size}</button>
-            `).join("")}
-          </div>
-        </fieldset>
-
-        <button class="primary-button" type="button" data-add-to-cart disabled>Select size</button>
-        <a class="secondary-button" href="#/cart">Open cart</a>
-        <p class="product-note">Quantity 1 = one pair = two T-shirts.</p>
-      </div>
-    </section>
-  `;
-
-  app.querySelectorAll("[data-size]").forEach((button) => {
-    button.addEventListener("click", () => selectSize(button.dataset.size));
-  });
-
-  app.querySelector("[data-add-to-cart]").addEventListener("click", () => {
-    if (!selectedSize) return;
-    addToCart(color, selectedSize);
+  setTitle("nepexog " + color.id + " " + color.name + " " + color.hex, "Two identical T-shirts in one selected color.");
+  clearApp();
+  const page = el("section", "product-page");
+  const gallery = el("div", "product-gallery");
+  const main = el("div", "main-media");
+  main.dataset.mainMedia = "true";
+  main.append(renderMedia("front", color));
+  const thumbs = el("div", "thumbs");
+  thumbs.setAttribute("aria-label", "Product media");
+  ["front", "back", "fabric", "pack"].forEach((kind, index) => thumbs.append(renderThumb(kind, color, index === 0)));
+  gallery.append(main, thumbs);
+  const details = el("aside", "product-details");
+  const back = el("a", "back-link", "← 24 colors");
+  back.href = "#/";
+  const row = el("div", "color-row");
+  const dot = el("span", "color-dot");
+  dot.style.background = color.hex;
+  row.append(dot, el("span", "", "Color " + color.id), el("span", "code-pill", color.hex));
+  details.append(back, el("p", "eyebrow", "nepexog color pair"), el("h1", "", color.name), row, el("p", "product-price", money(color.price)), el("p", "product-description", "Two identical crewneck T-shirts in one selected color. Same color, same size, vacuum-packed."));
+  const note = el("div", "included-note");
+  note.append(el("strong", "", "This product is a pair."), el("span", "", "You receive 2 T-shirts of the same color and size."));
+  details.append(note, renderSizeSelector(color), renderQuantitySelector(), renderPurchaseActions(color), renderDetailList());
+  page.append(gallery, details);
+  app.append(page);
+}
+function renderThumb(kind, color, active) {
+  const thumb = el("button", "thumb" + (active ? " is-active" : ""));
+  thumb.type = "button";
+  thumb.dataset.gallery = kind;
+  thumb.setAttribute("aria-pressed", String(active));
+  if (kind === "fabric") {
+    const fabric = el("span", "thumb-fabric");
+    fabric.style.setProperty("--tee-color", color.hex);
+    thumb.append(fabric);
+  } else if (kind === "pack") {
+    const pack = el("span", "thumb-pack");
+    pack.style.setProperty("--tee-color", color.hex);
+    pack.append(el("span"));
+    thumb.append(pack);
+  } else {
+    const wrap = el("span");
+    wrap.style.setProperty("--tee-color", color.hex);
+    wrap.append(renderTeeVisual(kind));
+    thumb.append(wrap);
+  }
+  thumb.append(el("em", "", kind[0].toUpperCase() + kind.slice(1)));
+  thumb.addEventListener("click", () => setGallery(kind, color));
+  return thumb;
+}
+function setGallery(kind, color) {
+  const main = app.querySelector("[data-main-media]");
+  main.replaceChildren(renderMedia(kind, color));
+  app.querySelectorAll("[data-gallery]").forEach((button) => {
+    const active = button.dataset.gallery === kind;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
 }
-
+function renderSizeSelector(color) {
+  const field = el("fieldset", "size-group");
+  field.append(el("legend", "", "Size"));
+  const options = el("div", "size-options");
+  color.sizes.forEach((size) => {
+    const button = el("button", "size-button", size);
+    button.type = "button";
+    button.dataset.size = size;
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", () => selectSize(size));
+    options.append(button);
+  });
+  field.append(options);
+  return field;
+}
+function renderQuantitySelector() {
+  const group = el("div", "quantity-group");
+  group.append(el("label", "", "Pairs"));
+  const control = el("div", "quantity-control");
+  const minus = el("button", "", "−");
+  const value = el("span", "", "1");
+  const plus = el("button", "", "+");
+  minus.type = "button";
+  plus.type = "button";
+  value.dataset.quantityValue = "true";
+  minus.addEventListener("click", () => changeQuantity(-1));
+  plus.addEventListener("click", () => changeQuantity(1));
+  control.append(minus, value, plus);
+  group.append(control, el("p", "", "1 pair = 2 T-shirts"));
+  return group;
+}
+function renderPurchaseActions(color) {
+  const actions = el("div", "purchase-actions");
+  const add = el("button", "primary-button", "Select size");
+  const buy = el("button", "secondary-button", "Checkout now");
+  add.type = "button";
+  buy.type = "button";
+  add.disabled = true;
+  buy.disabled = true;
+  add.dataset.addToCart = "true";
+  buy.dataset.buyNow = "true";
+  add.addEventListener("click", () => { if (selectedSize) addToCart(color, selectedSize, selectedQuantity); });
+  buy.addEventListener("click", () => { if (selectedSize) { addToCart(color, selectedSize, selectedQuantity); window.location.hash = "#/cart"; } });
+  actions.append(add, buy);
+  return actions;
+}
+function renderDetailList() {
+  const list = el("div", "detail-list");
+  [["Delivery", "Compact parcel. Shipping setup placeholder."], ["Packaging", "Vacuum-packed pair in one transparent pack."], ["Included", "2 same crewneck T-shirts, same color, same size."]].forEach(([title, body]) => {
+    const item = el("div");
+    item.append(el("strong", "", title), el("span", "", body));
+    list.append(item);
+  });
+  return list;
+}
 function selectSize(size) {
   selectedSize = size;
-  app.querySelectorAll("[data-size]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.size === size));
-  });
-
-  const button = app.querySelector("[data-add-to-cart]");
-  button.disabled = false;
-  button.textContent = "Add pair to cart";
+  app.querySelectorAll("[data-size]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.size === size)));
+  const add = app.querySelector("[data-add-to-cart]");
+  const buy = app.querySelector("[data-buy-now]");
+  add.disabled = false;
+  buy.disabled = false;
+  add.textContent = "Add to cart";
 }
-
-function addToCart(color, size) {
-  const key = `${color.slug}-${size}`;
+function changeQuantity(delta) {
+  selectedQuantity = Math.max(1, selectedQuantity + delta);
+  app.querySelector("[data-quantity-value]").textContent = String(selectedQuantity);
+}
+function addToCart(color, size, quantity) {
+  const key = color.slug + "-" + size;
   const existing = cart.find((item) => item.key === key);
-
-  if (existing) {
-    existing.quantity += 1;
-  } else {
-    cart.push({
-      key,
-      colorId: color.id,
-      slug: color.slug,
-      name: color.name,
-      hex: color.hex,
-      size,
-      price: color.price,
-      quantity: 1
-    });
-  }
-
+  if (existing) existing.quantity += quantity;
+  else cart.push({ key, colorId: color.id, slug: color.slug, name: color.name, hex: color.hex, size, price: color.price, quantity });
   saveCart();
   const button = app.querySelector("[data-add-to-cart]");
-  button.textContent = "Added";
-  setTimeout(() => {
-    button.textContent = "Add pair to cart";
-  }, 900);
+  if (button) {
+    button.textContent = "Added";
+    setTimeout(() => { if (selectedSize) button.textContent = "Add to cart"; }, 900);
+  }
 }
-
 function renderCart() {
-  setDocumentTitle(
-    "nepexog cart",
-    "Your nepexog cart. One pair means two identical T-shirts."
-  );
-
-  const totalPairs = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const totalTshirts = totalPairs * 2;
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  app.innerHTML = `
-    <section class="cart-page">
-      <div class="simple-page-header">
-        <h1>Cart.</h1>
-        <p>1 pair = 2 identical T-shirts. Quantity changes pairs, not single T-shirts.</p>
-      </div>
-
-      ${cart.length === 0 ? renderEmptyCart() : `
-        <div class="cart-list">
-          ${cart.map(renderCartItem).join("")}
-        </div>
-        <aside class="cart-summary" aria-label="Cart summary">
-          <div class="summary-row"><span>Pairs</span><span>${totalPairs}</span></div>
-          <div class="summary-row"><span>T-shirts</span><span>${totalTshirts}</span></div>
-          <div class="summary-row total"><span>Total</span><span>${formatMoney(subtotal)}</span></div>
-          <button class="primary-button" type="button" data-checkout>Checkout request</button>
-          <p class="checkout-note">MVP checkout placeholder. Replace with Stripe, Shopify, Snipcart, or another payment flow.</p>
-        </aside>
-      `}
-    </section>
-  `;
-
-  app.querySelectorAll("[data-increase]").forEach((button) => {
-    button.addEventListener("click", () => updateItemQuantity(button.dataset.increase, 1));
-  });
-
-  app.querySelectorAll("[data-decrease]").forEach((button) => {
-    button.addEventListener("click", () => updateItemQuantity(button.dataset.decrease, -1));
-  });
-
-  app.querySelectorAll("[data-remove]").forEach((button) => {
-    button.addEventListener("click", () => removeItem(button.dataset.remove));
-  });
-
-  const checkout = app.querySelector("[data-checkout]");
-  if (checkout) checkout.addEventListener("click", openCheckoutRequest);
+  setTitle("nepexog cart", "Your nepexog cart. One pair means two identical T-shirts.");
+  clearApp();
+  const page = el("section", "cart-page");
+  const header = el("div", "cart-header");
+  const back = el("a", "back-link", "← Colors");
+  back.href = "#/";
+  header.append(back, el("h1", "", "Cart"), el("p", "", "Quantity is counted in pairs. One pair contains two identical T-shirts."));
+  page.append(header);
+  if (!cart.length) page.append(renderEmptyCart());
+  else {
+    const list = el("div", "cart-list");
+    cart.forEach((item) => list.append(renderCartItem(item)));
+    page.append(list, renderCartSummary());
+  }
+  app.append(page);
 }
-
 function renderCartItem(item) {
-  return `
-    <article class="cart-item">
-      <div class="cart-swatch" style="--swatch: ${item.hex};" aria-hidden="true"></div>
-      <div class="cart-details">
-        <h2>Color ${item.colorId} — ${item.name}</h2>
-        <p class="cart-code">${item.hex}</p>
-        <p>Size ${item.size} / Pair of 2 T-shirts / ${formatMoney(item.price)} per pair</p>
-      </div>
-      <div class="cart-actions" aria-label="Quantity controls for ${item.name} size ${item.size}">
-        <button class="quantity-button" type="button" data-decrease="${item.key}" aria-label="Decrease quantity">−</button>
-        <span>${item.quantity}</span>
-        <button class="quantity-button" type="button" data-increase="${item.key}" aria-label="Increase quantity">+</button>
-        <button class="remove-button" type="button" data-remove="${item.key}">Remove</button>
-      </div>
-    </article>
-  `;
+  const article = el("article", "cart-item");
+  const art = el("div", "cart-art");
+  art.style.setProperty("--tee-color", item.hex);
+  art.append(renderTeeVisual("front"));
+  const details = el("div", "cart-details");
+  details.append(el("h2", "", item.name), el("p", "color-code", "Color " + item.colorId + " / " + item.hex), el("p", "", "Size " + item.size + ". Pair of 2 T-shirts. " + money(item.price) + " per pair."));
+  const actions = el("div", "cart-actions");
+  const minus = el("button", "", "−");
+  const plus = el("button", "", "+");
+  const remove = el("button", "", "Remove");
+  minus.type = plus.type = remove.type = "button";
+  minus.addEventListener("click", () => updateItemQuantity(item.key, -1));
+  plus.addEventListener("click", () => updateItemQuantity(item.key, 1));
+  remove.addEventListener("click", () => removeItem(item.key));
+  actions.append(minus, el("span", "", String(item.quantity)), plus, remove);
+  article.append(art, details, actions);
+  return article;
 }
-
-function renderEmptyCart() {
-  return `
-    <div class="empty-cart">
-      <p>Your cart is empty.</p>
-      <a class="secondary-button" href="#/">Choose a color</a>
-    </div>
-  `;
-}
-
-function updateItemQuantity(key, delta) {
-  cart = cart.map((item) => {
-    if (item.key !== key) return item;
-    return { ...item, quantity: Math.max(1, item.quantity + delta) };
-  });
-  saveCart();
-  renderCart();
-}
-
-function removeItem(key) {
-  cart = cart.filter((item) => item.key !== key);
-  saveCart();
-  renderCart();
-}
-
-function openCheckoutRequest() {
-  const lines = cart.map((item) => (
-    `${item.quantity} pair(s) / Color ${item.colorId} ${item.name} ${item.hex} / Size ${item.size}`
-  ));
-
+function renderCartSummary() {
   const totalPairs = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  const body = [
-    "nepexog order request",
-    "",
-    ...lines,
-    "",
-    `Pairs: ${totalPairs}`,
-    `T-shirts: ${totalPairs * 2}`,
-    `Total: ${formatMoney(subtotal)}`,
-    "",
-    "Name:",
-    "Shipping address:",
-    "Phone:"
-  ].join("\n");
-
-  window.location.href = `mailto:orders@nepexog.com?subject=${encodeURIComponent("nepexog order request")}&body=${encodeURIComponent(body)}`;
+  const summary = el("aside", "cart-summary");
+  summary.setAttribute("aria-label", "Cart summary");
+  [["Pairs", String(totalPairs)], ["T-shirts", String(totalPairs * 2)], ["Total", money(subtotal)]].forEach(([label, value], index) => {
+    const row = el("div", index === 2 ? "total" : "");
+    row.append(el("span", "", label), el("strong", "", value));
+    summary.append(row);
+  });
+  const checkout = el("button", "primary-button", "Checkout request");
+  checkout.type = "button";
+  checkout.addEventListener("click", () => alert("Checkout placeholder. Connect a payment provider before launch."));
+  summary.append(checkout, el("p", "", "MVP checkout placeholder. Connect Stripe, Shopify, Snipcart, or another payment flow."));
+  return summary;
 }
-
-function renderSizeGuide() {
-  setDocumentTitle(
-    "nepexog size guide",
-    "Standard T-shirt sizes for nepexog color pairs."
-  );
-
-  app.innerHTML = `
-    <section class="size-page">
-      <div class="simple-page-header">
-        <h1>Size.</h1>
-        <p>One selected size applies to both T-shirts in the pair. Mixed-size pairs are not available in the MVP.</p>
-      </div>
-
-      <table class="size-table" aria-label="Size guide">
-        <thead>
-          <tr>
-            <th>Size</th>
-            <th>Chest</th>
-            <th>Length</th>
-            <th>Note</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>XS</td><td>TBD</td><td>TBD</td><td>Placeholder</td></tr>
-          <tr><td>S</td><td>TBD</td><td>TBD</td><td>Placeholder</td></tr>
-          <tr><td>M</td><td>TBD</td><td>TBD</td><td>Placeholder</td></tr>
-          <tr><td>L</td><td>TBD</td><td>TBD</td><td>Placeholder</td></tr>
-          <tr><td>XL</td><td>TBD</td><td>TBD</td><td>Placeholder</td></tr>
-          <tr><td>XXL</td><td>TBD</td><td>TBD</td><td>Placeholder</td></tr>
-        </tbody>
-      </table>
-    </section>
-  `;
+function renderEmptyCart() {
+  const empty = el("div", "empty-cart");
+  const link = el("a", "secondary-button", "Choose color");
+  link.href = "#/";
+  empty.append(el("p", "", "Your cart is empty."), link);
+  return empty;
 }
-
-function renderPackPage() {
-  setDocumentTitle(
-    "nepexog vacuum pack",
-    "Each nepexog pair is vacuum-packed to reduce volume."
-  );
-
-  app.innerHTML = `
-    <section class="pack-page">
-      <div class="simple-page-header">
-        <h1>Pack.</h1>
-        <p>Each pair is vacuum-packed. Two T-shirts are compressed into one compact transparent pack.</p>
-      </div>
-      <section class="info-band">
-        <article class="info-block">
-          <h2>Less volume.</h2>
-          <p>The pack reduces physical volume for storage and shipping.</p>
-        </article>
-        <article class="info-block">
-          <h2>One pair.</h2>
-          <p>Every pack contains two identical T-shirts in the same color and size.</p>
-        </article>
-        <article class="info-block">
-          <h2>No excess.</h2>
-          <p>The visual system should stay factual: color, code, size, pack.</p>
-        </article>
-      </section>
-    </section>
-  `;
+function updateItemQuantity(key, delta) {
+  cart = cart.map((item) => item.key === key ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item);
+  saveCart();
+  renderCart();
 }
-
+function removeItem(key) { cart = cart.filter((item) => item.key !== key); saveCart(); renderCart(); }
 function renderNotFound() {
-  setDocumentTitle("nepexog — not found", "The requested nepexog page was not found.");
-  app.innerHTML = `
-    <section class="size-page">
-      <div class="simple-page-header">
-        <h1>Not found.</h1>
-        <p>This color or page does not exist.</p>
-        <a class="secondary-button" href="#/">Back to colors</a>
-      </div>
-    </section>
-  `;
+  setTitle("nepexog — not found", "The requested nepexog page was not found.");
+  clearApp();
+  const page = el("section", "cart-page");
+  const header = el("div", "cart-header");
+  const back = el("a", "back-link", "← Colors");
+  back.href = "#/";
+  header.append(back, el("h1", "", "Not found"), el("p", "", "This color or page does not exist."));
+  page.append(header);
+  app.append(page);
 }
-
 window.addEventListener("hashchange", route);
-window.addEventListener("storage", () => {
-  cart = readCart();
-  updateCartCount();
-});
-
+window.addEventListener("storage", () => { cart = readCart(); updateCartCount(); });
 updateCartCount();
 route();
